@@ -109,7 +109,6 @@ class SQLObject
 
   def save
     #calls #insert when record does not exist
-
-    
+    id.nil? ? insert : update
   end
 end
