@@ -1,16 +1,19 @@
 require_relative '02_searchable'
 require 'active_support/inflector'
+# inflector includes the use of String#camalecase, #singularize, and #underscore
 
-# Phase IIIa
+
 class AssocOptions
   attr_accessor :foreign_key, :class_name, :primary_key
 
   def model_class
-
+    # This gets the target model class
+    @class_name.constantize
   end
 
   def table_name
-    # ...
+    # This returns the name of the table
+    model_class.table_name
   end
 end
 
@@ -31,40 +34,41 @@ end
 
 class HasManyOptions < AssocOptions
   def initialize(name, self_class_name, options = {})
-    defaults = {
-      foreign_key: "#{self_class_name.downcase}_id".to_sym,
-      class_name: name.singularize.capitalize,
-      primary_key: :id
-    }
-
-    defaults.keys.each do |key|
-      self.send("#{key}=", options[key] || defaults[key] )
+    options[:foreign_key] ||= "#{self_class_name.to_s.downcase.singularize.underscore}_id".to_sym
+    options[:primary_key] ||= :id
+    options[:class_name] ||= name.to_s.singularize.camelize
+    options.each do |key, value|
+      send("#{key}=", value)
     end
   end
 end
 
 module Associatable
-  # Phase IIIb
+  # Extension for Associations
   def belongs_to(name, options = {})
-    self.class.assoc_options = {}
-    self.class.assoc_options[name] = BelongsToOptions.new(name, options)
+    # returns nil if no assiated object
+    # self.class.assoc_options = {}
+
+    options = BelongsToOptions.new(name, options)
 
     define_method(name) do
-      options = self.class.assoc_options[name]
-      foreign_key_val = self.send(options.foreign_key)
-      options.model_class.where("#{options.primary_key} == #{options.foreign_key}").first
+      f_key = self.send(options.foreign_key)
+      target_class = options.model_class
+      target_class.where(id: f_key).first
     end
-
-
-    # options =
   end
 
   def has_many(name, options = {})
-    # ...
+    options = HasManyOptions.new(name, to_s, options.to_h)
+    define_method(name) do
+      target_class = options.model_class
+      target_class.where(options.foreign_key => send(options.primary_key))
+    end
   end
 
   def assoc_options
-    # Wait to implement this in Phase IVa. Modify `belongs_to`, too.
+    @assoc_options ||= {}
+    @assoc_options
   end
 end
 
