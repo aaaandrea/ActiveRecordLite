@@ -1,14 +1,18 @@
 require_relative 'db_connection'
 require 'active_support/inflector'
-# NB: the attr_accessor we wrote in phase 0 is NOT used in the rest
-# of this project.
+# 'inflector' is a library which is used to ensure the pluralizations
+# used in ActiveRecord
 
 # This class is built to review a few methods found in ActiveRecord::Base
 # eg. ::all, ::find, #insert, #update, #save
 
 class SQLObject
+
+# class methods --------------------------
   def self.columns
     return @columns if @columns
+    # .execute2 returns an array in which the first element is the
+    # list of column names
     columns = DBConnection.execute2(<<-SQL).first
       SELECT *
       FROM #{table_name}
@@ -17,7 +21,8 @@ class SQLObject
   end
 
   def self.finalize!
-    #creates setter and getter methods for each column
+    # uses self.columns method to ensure we have an array to iterate over
+    # creates setter and getter methods for each column
     columns.each do |col|
       # col = col.to_s
       define_method(col) do
@@ -57,6 +62,7 @@ class SQLObject
     self.all.find { |obj| obj.id == id }
   end
 
+# initialize --------------------------
   def initialize(params = {})
     params.each do |attr_name, value|
       attr_name = attr_name.to_sym
@@ -70,12 +76,14 @@ class SQLObject
     end
   end
 
+# instance methods -----------------------
   def attributes
     @attributes ||= {}
   end
 
   def attribute_values
-    #returns an array of the values for each attribute; uses send on instance to get value.
+    #returns an array of the values for each attribute; uses send on
+    # instance to get value.
     self.class.columns.map { |k| self.send(k) }
   end
 
@@ -85,7 +93,8 @@ class SQLObject
     # 1. set @columns to array and drop one so you don't include id.
     columns = self.class.columns.drop(1)
 
-    # 2. set both columns and question marks to joined string so they are usable in SQL
+    # 2. set both columns and question marks to joined string so they
+    # are usable in SQL
     col_names = columns.map(&:to_s).join(', ')
     question_marks = (['?'] * columns.length).join(', ')
 
@@ -102,10 +111,10 @@ class SQLObject
   end
 
   def update
-    #update the row with the id of the SQL Object
+    # update the row with the id of the SQL Object
     columns = self.class.columns.map { |k| "#{k} = ?" }.join(", ")
 
-    #execute database and pass it attribute values (leaving off id again)
+    # execute database and pass it attribute values (leaving off id again)
     DBConnection.execute(<<-SQL, *attribute_values, id)
       UPDATE #{self.class.table_name}
       SET #{columns}
