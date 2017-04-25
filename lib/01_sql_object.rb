@@ -8,7 +8,7 @@ require 'active_support/inflector'
 
 class SQLObject
 
-# class methods --------------------------
+  # class methods --------------------------
   def self.columns
     return @columns if @columns
     # .execute2 returns an array in which the first element is the
@@ -62,7 +62,13 @@ class SQLObject
     self.all.find { |obj| obj.id == id }
   end
 
-# initialize --------------------------
+  # initialize --------------------------
+  # The params hash for initialization represents all the necessary data
+  # to create a row in the database.
+
+  # Here we use send() in order to take in the objects called and
+  # apply the methods passed in.
+  # This allows us to wait until runtime to decide which method is being called
   def initialize(params = {})
     params.each do |attr_name, value|
       attr_name = attr_name.to_sym
@@ -76,7 +82,7 @@ class SQLObject
     end
   end
 
-# instance methods -----------------------
+  # instance methods -----------------------
   def attributes
     @attributes ||= {}
   end
