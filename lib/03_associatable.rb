@@ -4,6 +4,7 @@ require 'active_support/inflector'
 
 
 class AssocOptions
+  # include module Associatable
   attr_accessor :foreign_key, :class_name, :primary_key
 
   def model_class
@@ -49,20 +50,30 @@ module Associatable
     # returns nil if no assiated object
     # self.class.assoc_options = {}
 
-    options = BelongsToOptions.new(name, options)
+    self.assoc_options[name] = BelongsToOptions.new(name, options)
 
     define_method(name) do
-      f_key = self.send(options.foreign_key)
-      target_class = options.model_class
-      target_class.where(id: f_key).first
+      options = self.class.assoc_options[name]
+
+      key_val = self.send(options.foreign_key)
+      options
+        .model_class
+        .where(options.primary_key => key_val)
+        .first
     end
   end
 
   def has_many(name, options = {})
-    options = HasManyOptions.new(name, to_s, options.to_h)
+    self.assoc_options[name] =
+      HasManyOptions.new(name, self.name, options)
+
     define_method(name) do
-      target_class = options.model_class
-      target_class.where(options.foreign_key => send(options.primary_key))
+      options = self.class.assoc_options[name]
+
+      key_val = self.send(options.primary_key)
+      options
+        .model_class
+        .where(options.foreign_key => key_val)
     end
   end
 
