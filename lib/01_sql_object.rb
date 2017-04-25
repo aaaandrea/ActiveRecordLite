@@ -1,7 +1,10 @@
 require_relative 'db_connection'
 require 'active_support/inflector'
 # NB: the attr_accessor we wrote in phase 0 is NOT used in the rest
-# of this project. It was only a warm up.
+# of this project.
+
+# This class is built to review a few methods found in ActiveRecord::Base
+# eg. ::all, ::find, #insert, #update, #save
 
 class SQLObject
   def self.columns
@@ -36,6 +39,7 @@ class SQLObject
   end
 
   def self.all
+    # return an array of all the records in the DB
     rows = DBConnection.execute(<<-SQL)
       SELECT #{table_name}.*
       FROM #{table_name}
@@ -49,6 +53,7 @@ class SQLObject
   end
 
   def self.find(id)
+    # look up a single record by primary key
     self.all.find { |obj| obj.id == id }
   end
 
@@ -75,27 +80,29 @@ class SQLObject
   end
 
   def insert
-    #set @columns to array and drop one so you don't include id.
+    # insert a new row into the table to represent the SQLObject
+
+    # 1. set @columns to array and drop one so you don't include id.
     columns = self.class.columns.drop(1)
 
-    #set both columns and question marks to joined string so they are usable in SQL
+    # 2. set both columns and question marks to joined string so they are usable in SQL
     col_names = columns.map(&:to_s).join(', ')
     question_marks = (['?'] * columns.length).join(', ')
 
-    #execute database and pass it attribute values (leaving off id again)
+    # 3. execute database and pass it attribute values (leaving off id again)
     DBConnection.execute(<<-SQL, *attribute_values.drop(1))
       INSERT INTO #{self.class.table_name} (#{col_names})
       VALUES (#{question_marks})
 
     SQL
 
-    #database inserts a record and assigns record id in self.
-    #uses method set in DBConnection
+    # 4. database inserts a record and assigns record id in self.
+    # uses method set in DBConnection
     self.id = DBConnection.last_insert_row_id
   end
 
   def update
-    #update record's attributes
+    #update the row with the id of the SQL Object
     columns = self.class.columns.map { |k| "#{k} = ?" }.join(", ")
 
     #execute database and pass it attribute values (leaving off id again)
@@ -104,11 +111,13 @@ class SQLObject
       SET #{columns}
       WHERE #{self.class.table_name}.id = ?
     SQL
-
   end
 
   def save
-    #calls #insert when record does not exist
+    # This method helps to ensure you call the expected method depending
+    # on whether you are creating a new row, or updating an already
+    # existing row.
+    # calls #insert when record does not exist
     id.nil? ? insert : update
   end
 end
